@@ -17,7 +17,7 @@ namespace Storage.Net.Tests.Integration
    [TestFixture("azure")]
    [TestFixture("disk-directory")]
    [TestFixture("aws-s3")]
-   //[TestFixture("onedrive-personal")]
+   [TestFixture("onedrive-personal")]
    //[TestFixture("onedrive-business")]
    public class BlobStorageTest : AbstractTestFixture
    {
@@ -36,16 +36,18 @@ namespace Storage.Net.Tests.Integration
          {
             case "azure":
                _storage = new AzureBlobStorage(
-                  Cfg.Read(TestSettings.AzureStorageName),
-                  Cfg.Read(TestSettings.AzureStorageKey),
+                  TestSettings.AzureStorageName,
+                  TestSettings.AzureStorageKey,
                   "blobstoragetest");
                break;
             case "disk-directory":
                _storage = new DirectoryFilesBlobStorage(TestDir);
                break;
-            //case "onedrive-personal":
-            //_storage = new OneDriveBlobStorage();
-            //break;
+            case "onedrive-personal":
+               _storage = new OneDriveBlobStorage(
+                  TestSettings.OneDriveClientId,
+                  TestSettings.OneDriveRedirectUri);
+               break;
             case "aws-s3":
                _storage = new AwsS3BlobStorage(
                   TestSettings.AwsAccessKeyId,

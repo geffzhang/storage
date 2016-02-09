@@ -14,6 +14,8 @@ namespace Storage.Net.Tests.Integration
 
       public static readonly Setting<string> OneDriveClientSecret = new Setting<string>("OneDrive.ClientSecret", null);
 
+      public static readonly Setting<string> OneDriveRedirectUri = new Setting<string>("OneDrive.RedirectUri", null);
+
       public static readonly Setting<string> AwsAccessKeyId = new Setting<string>("Aws.AccessKeyId", null);
 
       public static readonly Setting<string> AwsSecretAccessKey = new Setting<string>("Aws.SecretAccessKey", null);

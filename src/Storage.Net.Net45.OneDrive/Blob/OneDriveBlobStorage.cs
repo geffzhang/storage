@@ -13,15 +13,19 @@ namespace Storage.Net.OneDrive.Blob
    //to continue
    public class OneDriveBlobStorage : IBlobStorage
    {
-      private OneDriveClient _client;
+      private IOneDriveClient _client;
 
       public OneDriveBlobStorage(string clientId, string returnUrl)
       {
-         //_client = OneDriveClient.GetMicrosoftAccountClient(clientId, returnUrl, )
+         //see scopes: https://dev.onedrive.com/auth/msa_oauth.htm#authentication-scopes
+
+         _client = OneDriveClient.GetMicrosoftAccountClient(clientId, returnUrl,
+            new[] { "wl.signin", "wl.offline_access", "onedrive.readwrite" });
       }
 
       public IEnumerable<string> List(string prefix)
       {
+         Drive drive = _client.Drive.Request().GetAsync().Result;
          throw new NotImplementedException();
       }
 
