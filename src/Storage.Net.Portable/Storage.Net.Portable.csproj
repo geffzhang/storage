@@ -42,6 +42,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Blob\IBlobStorage.cs" />
+    <Compile Include="Documents\IDocumentDb.cs" />
     <Compile Include="ErrorCode.cs" />
     <Compile Include="FileFormats\CsvFormat.cs" />
     <Compile Include="FileFormats\CsvReader.cs" />
