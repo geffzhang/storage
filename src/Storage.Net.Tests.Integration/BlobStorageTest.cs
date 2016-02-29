@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Aloneguid.Support;
 using Config.Net;
+using Microsoft.OneDrive.Sdk;
 using NUnit.Framework;
 using Storage.Net.Aws.Blob;
 using Storage.Net.Blob;
@@ -44,9 +45,7 @@ namespace Storage.Net.Tests.Integration
                _storage = new DirectoryFilesBlobStorage(TestDir);
                break;
             case "onedrive-personal":
-               _storage = new OneDriveBlobStorage(
-                  TestSettings.OneDriveClientId,
-                  TestSettings.OneDriveRedirectUri);
+               _storage = new OneDriveBlobStorage(CreateAuthenticatedOneDrivePersonalClient());
                break;
             case "aws-s3":
                _storage = new AwsS3BlobStorage(
@@ -55,6 +54,20 @@ namespace Storage.Net.Tests.Integration
                   TestSettings.AwsTestBucketName);
                break;
          }
+      }
+
+      private static IOneDriveClient CreateAuthenticatedOneDrivePersonalClient()
+      {
+         //see scopes: https://dev.onedrive.com/auth/msa_oauth.htm#authentication-scopes
+
+         /*
+         _client = OneDriveClient.GetMicrosoftAccountClient(clientId, returnUrl,
+            new[] { "wl.signin", "wl.offline_access", "onedrive.readwrite" });
+
+         _client.AuthenticateAsync().Wait();
+         */
+
+         return null;
       }
 
       private string GetRandomStreamId()
