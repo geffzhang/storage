@@ -12,6 +12,8 @@ using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Rest.Azure;
 using System.Threading;
 using System.Text.RegularExpressions;
+using NetBox.Extensions;
+using NetBox;
 
 namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
 {
@@ -61,7 +63,7 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
          return new BlobId(item.Id.Substring(idx + 1), BlobItemKind.File);
       }
 
-      public async Task WriteAsync(string id, Stream sourceStream, bool append)
+      public async Task WriteAsync(string id, Stream sourceStream, bool append, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
          ValidateSecretName(id);
@@ -73,7 +75,7 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
          await _vaultClient.SetSecretAsync(_vaultUri, id, value);
       }
 
-      public async Task<Stream> OpenReadAsync(string id)
+      public async Task<Stream> OpenReadAsync(string id, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
          ValidateSecretName(id);
@@ -85,6 +87,7 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
          }
          catch(KeyVaultErrorException ex)
          {
+            if (IsNotFound(ex)) return null;
             TryHandleException(ex);
             throw;
          }
@@ -94,21 +97,21 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
          return value.ToMemoryStream();
       }
 
-      public async Task DeleteAsync(IEnumerable<string> ids)
+      public async Task DeleteAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 
          await Task.WhenAll(ids.Select(id => _vaultClient.DeleteSecretAsync(_vaultUri, id)));
       }
 
-      public async Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids)
+      public async Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 
-         return await Task.WhenAll(ids.Select(id => ExistsAsync(id)));
+         return await Task.WhenAll(ids.Select(id => ExistsAsync(id, cancellationToken)));
       }
 
-      private async Task<bool> ExistsAsync(string id)
+      private async Task<bool> ExistsAsync(string id, CancellationToken cancellationToken)
       {
          SecretBundle secret;
 
@@ -124,7 +127,7 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
          return secret != null;
       }
 
-      public async Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids)
+      public async Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 
@@ -133,7 +136,7 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
 
       private async Task<BlobMeta> GetMetaAsync(string id)
       {
-         SecretBundle secret = await _vaultClient.GetSecretAsync(id);
+         SecretBundle secret = await _vaultClient.GetSecretAsync(_vaultUri, id);
          byte[] data = Encoding.UTF8.GetBytes(secret.Value);
 
          return new BlobMeta(data.Length, secret.Value.GetHash(HashType.Md5));
@@ -170,7 +173,7 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
 
       private static bool TryHandleException(KeyVaultErrorException ex)
       {
-         if(ex.Body.Error.Code == "SecretNotFound")
+         if(IsNotFound(ex))
          {
             throw new StorageException(ErrorCode.NotFound, ex);
          }
@@ -178,11 +181,16 @@ namespace Storage.Net.Microsoft.Azure.KeyVault.Blob
          return false;
       }
 
+      private static bool IsNotFound(KeyVaultErrorException ex)
+      {
+         return ex.Body.Error.Code == "SecretNotFound";
+      }
+
       private static void ValidateSecretName(string id)
       {
          if(!secretNameRegex.IsMatch(id))
          {
-            throw new ArgumentException($"secret '{id}' does not match expected pattern '^[0-9a-zA-Z-]+$'");
+            throw new NotSupportedException($"secret '{id}' does not match expected pattern '^[0-9a-zA-Z-]+$'");
          }
       }
 

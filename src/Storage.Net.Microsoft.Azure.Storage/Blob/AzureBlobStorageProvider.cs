@@ -10,6 +10,7 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using System.Threading.Tasks;
 using System.Threading;
+using NetBox.Extensions;
 
 namespace Storage.Net.Microsoft.Azure.Storage.Blob
 {
@@ -18,12 +19,13 @@ namespace Storage.Net.Microsoft.Azure.Storage.Blob
    /// </summary>
    public class AzureBlobStorageProvider : IBlobStorageProvider
    {
+      private readonly CloudBlobClient _client;
       private readonly CloudBlobContainer _blobContainer;
 
       /// <summary>
       /// Creates an instance from account name, private key and container name
       /// </summary>
-      public AzureBlobStorageProvider(string accountName, string key, string containerName)
+      public AzureBlobStorageProvider(string accountName, string key, string containerName, bool createIfNotExists = true)
       {
          ValidateContainerName(containerName);
 
@@ -31,11 +33,36 @@ namespace Storage.Net.Microsoft.Azure.Storage.Blob
             new StorageCredentials(accountName, key),
             true);
 
-         CloudBlobClient blobClient = account.CreateCloudBlobClient();
+         _client = account.CreateCloudBlobClient();
 
-         _blobContainer = blobClient.GetContainerReference(containerName);
-         _blobContainer.CreateIfNotExistsAsync().Wait();
+         _blobContainer = _client.GetContainerReference(containerName);
+
+         if (createIfNotExists)
+         {
+            _blobContainer.CreateIfNotExistsAsync().Wait();
+         }
       }
+
+      /// <summary>
+      /// Create an instance from a SAS URL and container name
+      /// </summary>
+      /// <param name="sasUrl"></param>
+      public AzureBlobStorageProvider(Uri sasUrl)
+      {
+         if (sasUrl == null)
+         {
+            throw new ArgumentNullException(nameof(sasUrl));
+         }
+
+         _blobContainer = new CloudBlobContainer(sasUrl);
+         _client = _blobContainer.ServiceClient;
+      }
+
+      /// <summary>
+      /// Returns reference to the native Azure SD blob client.
+      /// </summary>
+      public CloudBlobClient NativeBlobClient => _client;
+
 
       /// <summary>
       /// Returns reference to the native Azure SDK blob container
@@ -157,7 +184,7 @@ namespace Storage.Net.Microsoft.Azure.Storage.Blob
          return await browser.ListFolder(options, cancellationToken); 
       }
 
-      public async Task WriteAsync(string id, Stream sourceStream, bool append)
+      public async Task WriteAsync(string id, Stream sourceStream, bool append, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
          GenericValidation.CheckSourceStream(sourceStream);
@@ -178,7 +205,7 @@ namespace Storage.Net.Microsoft.Azure.Storage.Blob
          }
       }
 
-      public async Task<Stream> OpenReadAsync(string id)
+      public async Task<Stream> OpenReadAsync(string id, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
 
@@ -190,24 +217,28 @@ namespace Storage.Net.Microsoft.Azure.Storage.Blob
          }
          catch (AzureStorageException ex)
          {
+            if (IsDoesntExist(ex)) return null;
+
             if (!TryHandleStorageException(ex)) throw;
          }
 
          throw new Exception("must not be here");
       }
 
-      public async Task DeleteAsync(IEnumerable<string> ids)
+      public async Task DeleteAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
-         foreach (string id in ids)
-         {
-            GenericValidation.CheckBlobId(id);
+         GenericValidation.CheckBlobId(ids);
 
-            CloudBlockBlob blob = _blobContainer.GetBlockBlobReference(StoragePath.Normalize(id, false));
-            await blob.DeleteIfExistsAsync();
-         }
+         await Task.WhenAll(ids.Select(id => DeleteAsync(id, cancellationToken)));
       }
 
-      public async Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids)
+      private Task DeleteAsync(string id, CancellationToken cancellationToken)
+      {
+         CloudBlockBlob blob = _blobContainer.GetBlockBlobReference(StoragePath.Normalize(id, false));
+         return blob.DeleteIfExistsAsync();
+      }
+
+      public async Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          var result = new List<bool>();
 
@@ -222,7 +253,7 @@ namespace Storage.Net.Microsoft.Azure.Storage.Blob
          return result;
       }
 
-      public async Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids)
+      public async Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          var result = new List<BlobMeta>();
          foreach (string id in ids)
@@ -230,34 +261,39 @@ namespace Storage.Net.Microsoft.Azure.Storage.Blob
             GenericValidation.CheckBlobId(id);
          }
 
-         foreach (string id in ids)
-         {
-            CloudBlob blob = _blobContainer.GetBlobReference(StoragePath.Normalize(id, false));
-            if (!(await blob.ExistsAsync())) return null;
+         return await Task.WhenAll(ids.Select(id => GetMetaAsync(id, cancellationToken)));
+      }
 
-            await blob.FetchAttributesAsync();
+      private async Task<BlobMeta> GetMetaAsync(string id, CancellationToken cancellationToken)
+      {
+         CloudBlob blob = _blobContainer.GetBlobReference(StoragePath.Normalize(id, false));
+         if (!(await blob.ExistsAsync())) return null;
 
-            //ContentMD5 is base64-encoded hash, whereas we work with HEX encoded ones
-            string md5 = blob.Properties.ContentMD5.Base64DecodeAsBytes().ToHexString();
+         await blob.FetchAttributesAsync();
 
-            var meta = new BlobMeta(
-               blob.Properties.Length,
-               md5);
+         //ContentMD5 is base64-encoded hash, whereas we work with HEX encoded ones
+         string md5 = blob.Properties.ContentMD5.Base64DecodeAsBytes().ToHexString();
 
-            result.Add(meta);
-         }
+         var meta = new BlobMeta(
+            blob.Properties.Length,
+            md5);
 
-         return result;
+         return meta;
       }
 
       private static bool TryHandleStorageException(AzureStorageException ex)
       {
-         if (ex.RequestInformation?.HttpStatusCode == 404)
+         if (IsDoesntExist(ex))
          {
             throw new StorageException(ErrorCode.NotFound, ex);
          }
 
          return false;
+      }
+
+      private static bool IsDoesntExist(AzureStorageException ex)
+      {
+         return ex.RequestInformation?.HttpStatusCode == 404;
       }
 
       public void Dispose()

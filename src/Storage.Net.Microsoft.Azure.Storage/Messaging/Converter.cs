@@ -1,4 +1,5 @@
 ﻿using Microsoft.WindowsAzure.Storage.Queue;
+using NetBox.Extensions;
 using Storage.Net.Messaging;
 using System;
 using System.IO;
@@ -29,7 +30,7 @@ namespace Storage.Net.Microsoft.Azure.Storage.Messaging
          {
             Properties = message.Properties.Select(p => new JsonProp { Name = p.Key, Value = p.Value }).ToArray()
          };
-         byte[] propBytes = Encoding.UTF8.GetBytes(clazz.ToJsonString(true));
+         byte[] propBytes = Encoding.UTF8.GetBytes(clazz.ToJsonString());
 
          CloudQueueMessage result;
          using (var ms = new MemoryStream())

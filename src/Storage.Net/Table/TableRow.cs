@@ -1,4 +1,5 @@
 ﻿using NetBox;
+using NetBox.Data;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -233,9 +234,34 @@ namespace Storage.Net.Table
       {
          if (rows == null) return true;
 
-         var groups = rows.GroupBy(r => r.Id);
+         IEnumerable<IGrouping<TableRowId, TableRow>> groups = rows.GroupBy(r => r.Id);
          IEnumerable<int> counts = groups.Select(g => g.Count());
          return counts.OrderByDescending(c => c).First() == 1;
+      }
+
+      public static TableRow Merge(IEnumerable<TableRow> rows)
+      {
+         TableRow masterRow = null;
+
+         foreach (TableRow row in rows)
+         {
+            if (masterRow == null)
+            {
+               masterRow = row;
+            }
+            else
+            {
+               foreach (KeyValuePair<string, DynamicValue> cell in row)
+               {
+                  if (!masterRow.ContainsKey(cell.Key))
+                  {
+                     masterRow[cell.Key] = cell.Value;
+                  }
+               }
+            }
+         }
+
+         return masterRow;
       }
    }
 }

@@ -6,6 +6,8 @@ using System.Linq;
 using NetBox.IO;
 using System.Threading.Tasks;
 using System.Threading;
+using NetBox.Extensions;
+using NetBox;
 
 namespace Storage.Net.Blob
 {
@@ -33,7 +35,7 @@ namespace Storage.Net.Blob
          return Task.FromResult((IEnumerable<BlobId>)matches);
       }
 
-      public Task WriteAsync(string id, Stream sourceStream, bool append)
+      public Task WriteAsync(string id, Stream sourceStream, bool append, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
 
@@ -60,17 +62,17 @@ namespace Storage.Net.Blob
          return Task.FromResult(true);
       }
 
-      public Task<Stream> OpenReadAsync(string id)
+      public Task<Stream> OpenReadAsync(string id, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
 
-         if (!_idToData.TryGetValue(id, out MemoryStream ms)) return null;
+         if (!_idToData.TryGetValue(id, out MemoryStream ms)) return Task.FromResult<Stream>(null);
 
          ms.Seek(0, SeekOrigin.Begin);
          return Task.FromResult<Stream>(new NonCloseableStream(ms));
       }
 
-      public Task DeleteAsync(IEnumerable<string> ids)
+      public Task DeleteAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 
@@ -82,7 +84,7 @@ namespace Storage.Net.Blob
          return Task.FromResult(true);
       }
 
-      public Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids)
+      public Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          var result = new List<bool>();
 
@@ -94,7 +96,7 @@ namespace Storage.Net.Blob
          return Task.FromResult<IEnumerable<bool>>(result);
       }
 
-      public Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids)
+      public Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 
@@ -134,7 +136,6 @@ namespace Storage.Net.Blob
 
       public void Dispose()
       {
-         throw new NotImplementedException();
       }
 
       public Task<ITransaction> OpenTransactionAsync()

@@ -1,23 +1,9 @@
-$gv = $env:APPVEYOR_BUILD_VERSION
-if($gv -eq $null)
-{
-   $gv = "5.0.0"
-}
-
 $bn = $env:APPVEYOR_BUILD_NUMBER
-if($bn -eq $null)
-{
-   $bn = "0"
-}
+$gv = $env:APPVEYOR_BUILD_VERSION
 
 $vt = @{
-   "Storage.Net.Microsoft.Azure.DataLake.Store.csproj" = "3.0.$bn";
-   "Storage.Net.Microsoft.Azure.EventHub.csproj" = "3.0.$bn";
-   "Storage.Net.Microsoft.Azure.ServiceBus.csproj" = "3.0.$bn";
-   "Storage.Net.Microsoft.Azure.Storage.csproj" = "3.0.$bn";
-   "Storage.Net.Microsoft.Azure.KeyVault.csproj" = "2.0.$bn";
    "Storage.Net.Microsoft.ServiceFabric.csproj" = "2.6.204.$bn";
-   "Storage.Net.WebHDFS" = "1.0.alpha-$bn"
+   "Storage.Net.Mssql.csproj" = "1.1.$bn"
 }
 
 $Copyright = "Copyright (c) 2015-2017 by Ivan Gavryliuk"
@@ -89,7 +75,7 @@ function Exec($Command, [switch]$ContinueOnError)
 }
 
 # Update versioning information
-Get-ChildItem *.csproj -Recurse | Where-Object {-not(($_.Name -like "*test*") -or ($_.Name -like "*Stateful*")) } | % {
+Get-ChildItem *.csproj -Recurse | Where-Object {-not(($_.Name -like "*test*") -or ($_.Name -like "*Stateful*") -or ($_.Name -like "*Esent*") -or ($_.Name -like "*Monitor*")) } | % {
    Update-ProjectVersion $_
 }
 

@@ -75,7 +75,7 @@ namespace Storage.Net.Microsoft.Azure.DataLake.Store.Blob
          return await browser.Browse(options, cancellationToken);
       }
 
-      public async Task WriteAsync(string id, Stream sourceStream, bool append)
+      public async Task WriteAsync(string id, Stream sourceStream, bool append, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
 
@@ -83,7 +83,7 @@ namespace Storage.Net.Microsoft.Azure.DataLake.Store.Blob
 
          if (append)
          {
-            if ((await ExistsAsync(new[] { id })).First())
+            if ((await ExistsAsync(new[] { id }, cancellationToken)).First())
             {
                await client.FileSystem.AppendAsync(_accountName, id, new NonCloseableStream(sourceStream));
             }
@@ -98,7 +98,7 @@ namespace Storage.Net.Microsoft.Azure.DataLake.Store.Blob
          }
       }
 
-      public async Task<Stream> OpenReadAsync(string id)
+      public async Task<Stream> OpenReadAsync(string id, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(id);
 
@@ -110,11 +110,12 @@ namespace Storage.Net.Microsoft.Azure.DataLake.Store.Blob
          }
          catch (CloudException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
          {
-            throw new StorageException(ErrorCode.NotFound, ex);
+            return null;
+            //throw new StorageException(ErrorCode.NotFound, ex);
          }
       }
 
-      public async Task DeleteAsync(IEnumerable<string> ids)
+      public async Task DeleteAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 
@@ -123,7 +124,7 @@ namespace Storage.Net.Microsoft.Azure.DataLake.Store.Blob
          await Task.WhenAll(ids.Select(id => client.FileSystem.DeleteAsync(_accountName, id)));
       }
 
-      public async Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids)
+      public async Task<IEnumerable<bool>> ExistsAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 
@@ -148,7 +149,7 @@ namespace Storage.Net.Microsoft.Azure.DataLake.Store.Blob
          return result;
       }
 
-      public async Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids)
+      public async Task<IEnumerable<BlobMeta>> GetMetaAsync(IEnumerable<string> ids, CancellationToken cancellationToken)
       {
          GenericValidation.CheckBlobId(ids);
 

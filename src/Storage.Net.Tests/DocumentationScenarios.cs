@@ -6,11 +6,27 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Storage.Net.Messaging;
+using System.Threading;
+using System.Collections.Generic;
+using Config.Net;
+using NetBox.Generator;
+using NetBox.Extensions;
 
 namespace Storage.Net.Tests
 {
    public class DocumentationScenarios
    {
+
+      private ITestSettings _settings;
+
+      public DocumentationScenarios()
+      {
+         _settings = new ConfigurationBuilder<ITestSettings>()
+            .UseIniFile("c:\\tmp\\integration-tests.ini")
+            .UseEnvironmentVariables()
+            .Build();
+      }
+
       //[Fact]
       public void Run()
       {
@@ -22,13 +38,13 @@ namespace Storage.Net.Tests
       public async Task Blobs_list_files_in_a_folder()
       {
          IBlobStorageProvider storage = StorageFactory.Blobs.AmazonS3BlobStorage(
-            TestSettings.Instance.AwsAccessKeyId,
-            TestSettings.Instance.AwsSecretAccessKey,
-            TestSettings.Instance.AwsTestBucketName);
+            _settings.AwsAccessKeyId,
+            _settings.AwsSecretAccessKey,
+            _settings.AwsTestBucketName);
 
-         await storage.WriteAsync("folder1/file1", Generator.RandomString.ToMemoryStream(), false);
-         await storage.WriteAsync("folder1/file2", Generator.RandomString.ToMemoryStream(), false);
-         await storage.WriteAsync("folder2/file1", Generator.RandomString.ToMemoryStream(), false);
+         await storage.WriteAsync("folder1/file1", RandomGenerator.RandomString.ToMemoryStream(), false);
+         await storage.WriteAsync("folder1/file2", RandomGenerator.RandomString.ToMemoryStream(), false);
+         await storage.WriteAsync("folder2/file1", RandomGenerator.RandomString.ToMemoryStream(), false);
 
          BlobId[] folderBlobs = (await storage.ListAsync(new ListOptions { FolderPath = "folder1", Recurse = true })).ToArray();
       }
@@ -36,8 +52,8 @@ namespace Storage.Net.Tests
       public async Task BlobStorage_sample1()
       {
          IBlobStorageProvider storage = StorageFactory.Blobs.AzureBlobStorage(
-            TestSettings.Instance.AzureStorageName,
-            TestSettings.Instance.AzureStorageKey,
+            _settings.AzureStorageName,
+            _settings.AzureStorageKey,
             "container name");
 
          //upload it
@@ -63,8 +79,8 @@ namespace Storage.Net.Tests
       public async Task BlobStorage_sample2()
       {
          IBlobStorageProvider provider = StorageFactory.Blobs.AzureBlobStorage(
-            TestSettings.Instance.AzureStorageName,
-            TestSettings.Instance.AzureStorageKey,
+            _settings.AzureStorageName,
+            _settings.AzureStorageKey,
             "container name");
          BlobStorage storage = new BlobStorage(provider);
 
@@ -110,9 +126,9 @@ namespace Storage.Net.Tests
          await receiver.StartMessagePumpAsync(OnNewMessage);
       }
 
-      public async Task OnNewMessage(QueueMessage message)
+      public async Task OnNewMessage(IEnumerable<QueueMessage> message)
       {
-         Console.WriteLine($"message received, id: {message.Id}, content: '{message.StringContent}'");
+         //Console.WriteLine($"message received, id: {message.Id}, content: '{message.StringContent}'");
       }
    }
 }

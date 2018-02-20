@@ -15,7 +15,6 @@ namespace Storage.Net.Microsoft.Azure.Storage.Messaging
    /// </summary>
    class AzureStorageQueueReceiver : IMessageReceiver
    {
-      private const int PollingBatchSize = 1;
       private readonly CloudQueueClient _client;
       private readonly string _queueName;
       private readonly CloudQueue _queue;
@@ -86,7 +85,7 @@ namespace Storage.Net.Microsoft.Azure.Storage.Messaging
       /// Deletes the message from the queue
       /// </summary>
       /// <param name="message"></param>
-      public async Task ConfirmMessageAsync(QueueMessage message)
+      public async Task ConfirmMessageAsync(QueueMessage message, CancellationToken cancellationToken)
       {
          Converter.SplitId(message.Id, out string id, out string popReceipt);
          if (popReceipt == null) throw new ArgumentException("cannot delete message by short id", id);
@@ -97,7 +96,7 @@ namespace Storage.Net.Microsoft.Azure.Storage.Messaging
       /// Moves message to a dead letter queue which has the same name as original queue prefixed with "-deadletter". This is done because 
       /// Azure Storage queues do not support deadlettering directly.
       /// </summary>
-      public async Task DeadLetterAsync(QueueMessage message, string reason, string errorDescription)
+      public async Task DeadLetterAsync(QueueMessage message, string reason, string errorDescription, CancellationToken cancellationToken)
       {
          var dead = (QueueMessage)message.Clone();
          dead.Properties["deadLetterReason"] = reason;
@@ -107,40 +106,36 @@ namespace Storage.Net.Microsoft.Azure.Storage.Messaging
 
          await deadLetterQueue.AddMessageAsync(Converter.ToCloudQueueMessage(message));
 
-         await ConfirmMessageAsync(message);
+         await ConfirmMessageAsync(message, cancellationToken);
       }
 
       /// <summary>
       /// Due to the fact storage queues don't support notifications this method starts an internal thread to poll for messages.
       /// </summary>
-      public Task StartMessagePumpAsync(Func<QueueMessage, Task> onMessage)
+      public Task StartMessagePumpAsync(Func<IEnumerable<QueueMessage>, Task> onMessage, int maxBatchSize, CancellationToken cancellationToken)
       {
          if (onMessage == null) throw new ArgumentNullException(nameof(onMessage));
          if (_pollingTask != null) throw new ArgumentException("polling already started", nameof(onMessage));
 
-         _pollingTask = PollTasks(onMessage, _cts.Token);
+         _pollingTask = PollTasks(onMessage, maxBatchSize, _cts.Token);
 
          return Task.FromResult(true);
       }
 
-      private async Task PollTasks(Func<QueueMessage, Task> callback, CancellationToken ct)
+      private async Task PollTasks(Func<IEnumerable<QueueMessage>, Task> callback, int maxBatchSize, CancellationToken ct)
       {
          if (ct.IsCancellationRequested) return;
 
-         IEnumerable<QueueMessage> messages = await ReceiveMessagesAsync(PollingBatchSize);
+         IEnumerable<QueueMessage> messages = await ReceiveMessagesAsync(maxBatchSize);
          while(messages != null)
          {
-            foreach(QueueMessage msg in messages)
-            {
-               await callback(msg);
-            }
-
-            messages = await ReceiveMessagesAsync(PollingBatchSize);
+            await callback(messages);
+            messages = await ReceiveMessagesAsync(maxBatchSize);
          }
 
          await Task.Delay(_messagePumpPollingTimeout, ct).ContinueWith(async (t) =>
          {
-            await PollTasks(callback, ct);
+            await PollTasks(callback, maxBatchSize, ct);
          });
       }
 
@@ -164,6 +159,11 @@ namespace Storage.Net.Microsoft.Azure.Storage.Messaging
          IEnumerable<CloudQueueMessage> batch = await _queue.GetMessagesAsync(count, _messageVisibilityTimeout, null, null);
          if(batch == null) return null;
          return batch.Select(Converter.ToQueueMessage).ToList();
+      }
+
+      public async Task<ITransaction> OpenTransactionAsync()
+      {
+         return EmptyTransaction.Instance;
       }
    }
 }
