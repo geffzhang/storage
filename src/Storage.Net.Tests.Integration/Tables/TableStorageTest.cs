@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using NetBox.Extensions;
 using NetBox.Data;
 
-namespace Storage.Net.Tests.Integration
+namespace Storage.Net.Tests.Integration.Tables
 {
    public class CsvFilesTableStorageTest : TableStorageTest
    {
@@ -36,7 +36,7 @@ namespace Storage.Net.Tests.Integration
    public abstract class TableStorageTest : AbstractTestFixture
    {
       private readonly string _name;
-      private ITableStorageProvider _tables;
+      private ITableStorage _tables;
       private string _tableName;
       private ITestSettings _settings;
 

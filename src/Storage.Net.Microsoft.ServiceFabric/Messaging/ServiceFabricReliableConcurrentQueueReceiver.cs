@@ -9,14 +9,14 @@ using System.Threading.Tasks;
 
 namespace Storage.Net.Microsoft.ServiceFabric.Messaging
 {
-   class ServiceFabricReliableQueueReceiver : IMessageReceiver
+   class ServiceFabricReliableConcurrentQueueReceiver : IMessageReceiver
    {
       private IReliableStateManager _stateManager;
       private readonly string _queueName;
       private readonly TimeSpan _scanInterval;
       private bool _disposed;
 
-      public ServiceFabricReliableQueueReceiver(IReliableStateManager stateManager, string queueName, TimeSpan scanInterval)
+      public ServiceFabricReliableConcurrentQueueReceiver(IReliableStateManager stateManager, string queueName, TimeSpan scanInterval)
       {
          _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
          _queueName = queueName ?? throw new ArgumentNullException(nameof(queueName));
@@ -33,24 +33,31 @@ namespace Storage.Net.Microsoft.ServiceFabric.Messaging
       {
          using (var tx = new ServiceFabricTransaction(_stateManager, null))
          {
-            IReliableQueue<byte[]> collection = await GetCollectionAsync();
+            IReliableConcurrentQueue<byte[]> collection = await GetCollectionAsync();
 
-            long count = await collection.GetCountAsync(tx.Tx);
-
-            return (int)count;
+            return (int)collection.Count;
          }
       }
 
+      /// <summary>
+      /// See interface
+      /// </summary>
       public async Task StartMessagePumpAsync(Func<IEnumerable<QueueMessage>, Task> onMessage, int maxBatchSize, CancellationToken cancellationToken)
       {
          Task.Run(() => ReceiveMessagesAsync(onMessage, maxBatchSize, cancellationToken));
       }
 
+      /// <summary>
+      /// See interface
+      /// </summary>
       public Task ConfirmMessageAsync(QueueMessage message, CancellationToken cancellationToken)
       {
          return Task.FromResult(true);
       }
 
+      /// <summary>
+      /// See interface
+      /// </summary>
       public Task DeadLetterAsync(QueueMessage message, string reason, string errorDescription, CancellationToken cancellationToken)
       {
          return Task.FromResult(true);
@@ -66,11 +73,11 @@ namespace Storage.Net.Microsoft.ServiceFabric.Messaging
             {
                using (var tx = new ServiceFabricTransaction(_stateManager, null))
                {
-                  IReliableQueue<byte[]> collection = await GetCollectionAsync();
+                  IReliableConcurrentQueue<byte[]> collection = await GetCollectionAsync();
 
                   while (messages.Count < maxBatchSize)
                   {
-                     ConditionalValue<byte[]> message = await collection.TryDequeueAsync(tx.Tx, TimeSpan.FromSeconds(4), cancellationToken);
+                     ConditionalValue<byte[]> message = await collection.TryDequeueAsync(tx.Tx, cancellationToken);
                      if (message.HasValue)
                      {
                         QueueMessage qm = QueueMessage.FromByteArray(message.Value);
@@ -112,9 +119,9 @@ namespace Storage.Net.Microsoft.ServiceFabric.Messaging
          return EmptyTransaction.Instance;
       }
 
-      private Task<IReliableQueue<byte[]>> GetCollectionAsync()
+      private Task<IReliableConcurrentQueue<byte[]>> GetCollectionAsync()
       {
-         return _stateManager.GetOrAddAsync<IReliableQueue<byte[]>>(_queueName);
+         return _stateManager.GetOrAddAsync<IReliableConcurrentQueue<byte[]>>(_queueName);
       }
    }
 }
