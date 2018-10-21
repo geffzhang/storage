@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Storage.Net.Blob
@@ -24,9 +25,19 @@ namespace Storage.Net.Blob
       public string Id { get; private set; }
 
       /// <summary>
+      /// Contains blob metadata when known, optional.
+      /// </summary>
+      public BlobMeta Meta { get; set; }
+
+      /// <summary>
       /// Gets full path to this blob which is a combination of folder path and blob name
       /// </summary>
       public string FullPath => StoragePath.Combine(FolderPath, Id);
+
+      /// <summary>
+      /// Custom provider-specific properties
+      /// </summary>
+      public Dictionary<string, string> Properties { get; set; }
 
       /// <summary>
       /// Create a new instance
@@ -36,7 +47,7 @@ namespace Storage.Net.Blob
       public BlobId(string fullId, BlobItemKind kind = BlobItemKind.File)
       {
          string path = StoragePath.Normalize(fullId);
-         string[] parts = StoragePath.GetParts(path);
+         string[] parts = StoragePath.Split(path);
 
          Id = parts.Last();
          FolderPath = parts.Length > 1
@@ -59,6 +70,9 @@ namespace Storage.Net.Blob
          Kind = kind;
       }
 
+      /// <summary>
+      /// Full blob info, i.e type, id and path
+      /// </summary>
       public override string ToString()
       {
          string k = Kind == BlobItemKind.File ? "file" : "folder";
@@ -66,6 +80,10 @@ namespace Storage.Net.Blob
          return $"{k}: {Id}@{FolderPath}";
       }
 
+      /// <summary>
+      /// Equality check
+      /// </summary>
+      /// <param name="other"></param>
       public bool Equals(BlobId other)
       {
          if (ReferenceEquals(other, null)) return false;
@@ -75,7 +93,10 @@ namespace Storage.Net.Blob
             other.Kind == Kind;
       }
 
-      // override object.Equals
+      /// <summary>
+      /// Equality check
+      /// </summary>
+      /// <param name="other"></param>
       public override bool Equals(object other)
       {
          if (ReferenceEquals(other, null)) return false;
@@ -85,15 +106,20 @@ namespace Storage.Net.Blob
          return Equals((BlobId)other);
       }
 
+      /// <summary>
+      /// Hash code calculation
+      /// </summary>
       public override int GetHashCode()
       {
          return FullPath.GetHashCode() * Kind.GetHashCode();
       }
 
+      /// <summary>
+      /// Constructs a file blob by full ID
+      /// </summary>
       public static implicit operator BlobId(string fileId)
       {
          return new BlobId(fileId, BlobItemKind.File);
       }
-
    }
 }

@@ -32,11 +32,15 @@ namespace Storage.Net.Tests
       {
          //Blobs_save_file_to_azure_storage_and_read_it_later();
          //Blobs_save_file_to_a_specific_folder();
-         Blobs_list_files_in_a_folder();
+         Blobs_list_files_in_a_folder().Wait();
       }
 
       public async Task Blobs_list_files_in_a_folder()
       {
+
+         IBlobStorage s = StorageFactory.Blobs.FromConnectionString("azure.blobs://...parameters...");
+
+
          IMessagePublisher publisher = StorageFactory.Messages.InMemoryPublisher("name");
 
          IMessageReceiver receiver = StorageFactory.Messages.InMemoryReceiver("name");

@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using Storage.Net.Blob;
 using Storage.Net.Blob.Files;
 using Storage.Net.Messaging;
-using Storage.Net.Table;
-using Storage.Net.Table.Files;
-using NetBox.Extensions;
+using Storage.Net.ConnectionString;
+using Storage.Net.KeyValue;
+using Storage.Net.KeyValue.Files;
 
 namespace Storage.Net
 {
@@ -15,18 +14,42 @@ namespace Storage.Net
    /// </summary>
    public static class Factory
    {
-      private static readonly Dictionary<string, InMemoryMessagePublisherReceiver> _inMemoryMessagingNameToInstance =
-         new Dictionary<string, InMemoryMessagePublisherReceiver>();
+      /// <summary>
+      /// Call to initialise a module
+      /// </summary>
+      public static IModulesFactory Use(this IModulesFactory factory, IExternalModule module)
+      {
+         if (module == null)
+         {
+            throw new ArgumentNullException(nameof(module));
+         }
+
+         IConnectionFactory connectionFactory = module.ConnectionFactory;
+         if (connectionFactory != null)
+         {
+            ConnectionStringFactory.Register(connectionFactory);
+         }
+
+         return factory;
+      }
+
+      /// <summary>
+      /// Creates a blob stogage instance from a connection string
+      /// </summary>
+      public static IBlobStorage FromConnectionString(this IBlobStorageFactory factory, string connectionString)
+      {
+         return ConnectionStringFactory.CreateBlobStorage(connectionString);
+      }
 
       /// <summary>
       /// Creates a new instance of CSV file storage
       /// </summary>
       /// <param name="factory"></param>
       /// <param name="rootDir"></param>
-      public static ITableStorage CsvFiles(this ITableStorageFactory factory,
+      public static IKeyValueStorage CsvFiles(this IKeyValueStorageFactory factory,
          DirectoryInfo rootDir)
       {
-         return new CsvFileTableStorageProvider(rootDir);
+         return new CsvFileKeyValueStorage(rootDir);
       }
 
       /// <summary>
@@ -59,9 +82,7 @@ namespace Storage.Net
       /// with the same name returns an identical publisher. To create a receiver for this memory bufffer use the same name.</param>
       public static IMessagePublisher InMemoryPublisher(this IMessagingFactory factory, string name)
       {
-         if (name == null) throw new ArgumentNullException(nameof(name));
-
-         return _inMemoryMessagingNameToInstance.GetOrAdd(name, () => new InMemoryMessagePublisherReceiver());
+         return InMemoryMessagePublisherReceiver.CreateOrGet(name);
       }
 
       /// <summary>
@@ -71,9 +92,7 @@ namespace Storage.Net
       /// <param name="name">Memory buffer name. Use the name used when you've created a publisher to receive messages from that buffer.</param>
       public static IMessageReceiver InMemoryReceiver(this IMessagingFactory factory, string name)
       {
-         if (name == null) throw new ArgumentNullException(nameof(name));
-
-         return _inMemoryMessagingNameToInstance.GetOrAdd(name, () => new InMemoryMessagePublisherReceiver());
+         return InMemoryMessagePublisherReceiver.CreateOrGet(name);
       }
    }
 }

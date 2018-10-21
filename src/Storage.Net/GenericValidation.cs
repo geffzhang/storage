@@ -50,6 +50,9 @@ namespace Storage.Net
          }*/
       }
 
+      /// <summary>
+      /// Checks blob ID for generic rules
+      /// </summary>
       public static void CheckBlobId(IEnumerable<string> ids)
       {
          if (ids == null) return;
@@ -60,13 +63,16 @@ namespace Storage.Net
          }
       }
 
+      /// <summary>
+      /// Checks source stream for generic rules
+      /// </summary>
       public static void CheckSourceStream(Stream inputStream)
       {
          if (inputStream == null) throw new ArgumentNullException(nameof(inputStream));
 
          try
          {
-            var l = inputStream.Length;
+            long l = inputStream.Length;
          }
          catch(NotSupportedException ex)
          {

@@ -25,8 +25,6 @@ namespace Storage.Net.Microsoft.Azure.ServiceBus
       /// <summary>
       /// Creates an instance of Azure Service Bus receiver with connection
       /// </summary>
-      /// <param name="connectionString">Service Bus connection string</param>
-      /// <param name="topicName">Queue name in Service Bus</param>
       public AzureServiceBusTopicReceiver(string connectionString, string topicName, string subscriptionName, bool peekLock = true)
       {
          _client = new SubscriptionClient(connectionString, topicName, subscriptionName, peekLock ? ReceiveMode.PeekLock : ReceiveMode.ReceiveAndDelete);
@@ -75,7 +73,7 @@ namespace Storage.Net.Microsoft.Azure.ServiceBus
       /// Starts message pump with AutoComplete = false, 1 minute session renewal and 1 concurrent call.
       /// </summary>
       /// <param name="onMessage"></param>
-      public Task StartMessagePumpAsync(Func<IEnumerable<QueueMessage>, Task> onMessage, int maxBatchSize, CancellationToken cancellationToken)
+      public Task StartMessagePumpAsync(Func<IReadOnlyCollection<QueueMessage>, Task> onMessage, int maxBatchSize, CancellationToken cancellationToken)
       {
          if (onMessage == null) throw new ArgumentNullException(nameof(onMessage));
 
@@ -93,7 +91,7 @@ namespace Storage.Net.Microsoft.Azure.ServiceBus
             {
                QueueMessage qm = Converter.ToQueueMessage(message);
                _messageIdToBrokeredMessage[qm.Id] = message;
-               await onMessage(Enumerable.Repeat(qm, 1));
+               await onMessage(new[] { qm });
             },
             options);
 
