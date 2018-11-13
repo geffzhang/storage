@@ -42,6 +42,30 @@ namespace Storage.Net
       }
 
       /// <summary>
+      /// Creates a key-value storage instance from a connections tring
+      /// </summary>
+      public static IKeyValueStorage FromConnectionString(this IKeyValueStorageFactory factory, string connectionString)
+      {
+         return ConnectionStringFactory.CreateKeyValueStorage(connectionString);
+      }
+
+      /// <summary>
+      /// Creates message publisher
+      /// </summary>
+      public static IMessagePublisher PublisherFromConnectionString(this IMessagingFactory factory, string connectionString)
+      {
+         return ConnectionStringFactory.CreateMessagePublisher(connectionString);
+      }
+
+      /// <summary>
+      /// Creates message receiver
+      /// </summary>
+      public static IMessageReceiver ReceiverFromConnectionString(this IMessagingFactory factory, string connectionString)
+      {
+         return ConnectionStringFactory.CreateMessageReceiver(connectionString);
+      }
+
+      /// <summary>
       /// Creates a new instance of CSV file storage
       /// </summary>
       /// <param name="factory"></param>

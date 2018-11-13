@@ -4,11 +4,11 @@ configuration: Release
 platform: Any CPU
 before_build:
 - ps: >-
-    dotnet tool install dotnet-housework -g
+    dotnet tool install housework -g
 
-    dotnet housework setbuildnumber %FileVersion%  build.ini -v
+    housework setbuildnumber %FileVersion% -s build.ini
 
-    dotnet housework author src/*.csproj  build.ini -r
+    housework author src/*.csproj -s build.ini -r
 
     dotnet restore src/storage.sln
 build:
@@ -18,4 +18,9 @@ test_script:
 - ps: dotnet test .\src\Storage.Net.Tests\ -c release
 artifacts:
 - path: src/**/*.nupkg
-deploy: off
+deploy:
+- provider: NuGet
+  api_key:
+    secure: hQlxhZb6uDjtZz4V+DZyAqjxnGjXqEokO/tckU14RDUP/AxTkFnX869pNsXCv+Ab
+  on:
+    branch: master
